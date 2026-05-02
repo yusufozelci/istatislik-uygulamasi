@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>İstatistik Uygulaması</title>
+
+    <style>
+        body{
+            font-family:Arial;
+            background:#eef2f7;
+            text-align:center;
+        }
+
+        h1{
+            margin-top:20px;
+        }
+
+        .container{
+            background:white;
+            width:850px;
+            margin:auto;
+            padding:25px;
+            border-radius:10px;
+            box-shadow:0 4px 10px rgba(0,0,0,0.1);
+            margin-top:30px;
+        }
+
+        button{
+            padding:10px 15px;
+            margin:5px;
+            border:none;
+            background:#3b82f6;
+            color:white;
+            border-radius:5px;
+            cursor:pointer;
+        }
+
+        button:hover{
+            background:#2563eb;
+        }
+
+        input{
+            padding:10px;
+            width:90%;
+            margin-top:10px;
+            border-radius:5px;
+            border:1px solid #ccc;
+        }
+
+        .result{
+            margin-top:20px;
+            text-align:left;
+        }
+
+        table{
+            border-collapse:collapse;
+            width:100%;
+            margin-top:15px;
+            background: #fff;
+        }
+
+        th,td{
+            border:1px solid #ddd;
+            padding:8px;
+            text-align:center;
+        }
+
+        th{
+            background:#3b82f6;
+            color:white;
+            font-size: 13px;
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        .nav{
+            margin-top:20px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .grid-table td {
+            width: 10%;
+        }
+
+        .range-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .range-inputs input {
+            width: 40%;
+        }
+
+        #stratumInputArea {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 75%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>📊 İstatistik Uygulaması</h1>
+
+<div class="nav">
+    <button onclick="showPage(1)">Örnekleme</button>
+    <button onclick="showPage(2)">İstatistik Hesapları</button>
+</div>
+
+<div class="container" id="page1">
+    <h2>Örnekleme Yöntemleri</h2>
+
+    Değer Aralığı (Evren/Popülasyon):
+    <div class="range-inputs">
+        <input id="rangeMin" type="number" placeholder="Min Değer (Örn: 1)">
+        <input id="rangeMax" type="number" placeholder="Max Değer (Örn: 100)">
+    </div><br>
+
+    Örnek Sayısı (n):
+    <input id="sampleSize" type="number" placeholder="Örn: 10"><br><br>
+
+    <button onclick="basitRastgele()">Basit Rastgele</button>
+    <button onclick="sistematik()">Sistematik</button>
+    <button onclick="toggleTabakali()">Tabakalı</button>
+
+    <div id="stratumInputArea">
+        <b style="color:#2563eb;">Tabakalı Örnekleme Ayarı</b><br>
+        <small style="color:#666;">Tabaka yüzdelerini aralarına virgül koyarak yazın (Toplam 100 olmalı).</small><br>
+        <input id="stratumPercents" type="text" style="width:250px; padding:8px; margin-top:10px; text-align:center;" placeholder="Örn: 20, 50, 30" value="50, 50"><br>
+        <button onclick="tabakali()" style="background:#10b981; margin-top:10px;">Örneklemi Oluştur</button>
+    </div>
+
+    <div class="result" id="sampleResult"></div>
+</div>
+
+<div class="container" id="page2" style="display:none">
+    <h2>İstatistik Hesaplama</h2>
+
+    Veri Kümesi (boşluk ile gir):
+    <input id="dataStats" placeholder="10 20 20 30 40 50 60 60 60 70"><br><br>
+
+    <button onclick="hesapla()">Hesapla</button>
+
+    <div class="result" id="statsResult"></div>
+</div>
+
+<script>
+    function showPage(p){
+        document.getElementById("page1").style.display="none"
+        document.getElementById("page2").style.display="none"
+        if(p==1) document.getElementById("page1").style.display="block"
+        else document.getElementById("page2").style.display="block"
+    }
+
+    function parseData(id){
+        let val = document.getElementById(id).value.trim();
+        if(!val) return [];
+        return val.split(/\s+/).map(x => Number(x.replace(",", ".")))
+    }
+
+    function getPrecision(veri) {
+        let maxP = 0;
+        veri.forEach(v => {
+            let str = v.toString();
+            if (str.includes(".")) {
+                let p = str.split(".")[1].length;
+                if (p > maxP) maxP = p;
+            }
+        });
+        return maxP;
+    }
+
+    function basitSeriGrid(veri, sutunSayisi = 10){
+        let sirali = [...veri].sort((a,b)=>a-b);
+        let tablo = `<div class="table-responsive"><table class="grid-table"><tr><th colspan="${sutunSayisi}">Basit Seri</th></tr>`;
+        for (let i = 0; i < sirali.length; i += sutunSayisi) {
+            tablo += '<tr>';
+            for (let j = 0; j < sutunSayisi; j++) {
+                if (i + j < sirali.length) tablo += `<td>${sirali[i+j]}</td>`;
+                else tablo += `<td></td>`;
+            }
+            tablo += '</tr>';
+        }
+        tablo += `</table></div>`;
+        return tablo;
+    }
+
+    function frekansSerisiYatay(veri){
+        let sirali = [...veri].sort((a,b)=>a-b);
+        let freq={}
+        sirali.forEach(x=>{ freq[x]=(freq[x]||0)+1 })
+        let tablo = `<div class="table-responsive"><table>`;
+        tablo += `<tr><th>Gözlem (X<sub>i</sub>)</th>`;
+        for(let key in freq) tablo += `<td><b>${key}</b></td>`;
+        tablo += `</tr><tr><th>Frekans (f<sub>i</sub>)</th>`;
+        for(let key in freq) tablo += `<td>${freq[key]}</td>`;
+        tablo += `</tr></table></div>`;
+        return tablo;
+    }
+
+    function siniflariHesapla(veri) {
+        let n = veri.length;
+        if(n === 0) return null;
+
+        let siraliVeri = [...veri].sort((a,b) => a-b);
+        let S = siraliVeri[0];
+        let L = siraliVeri[n-1];
+        let R = L - S;
+
+        let k = Math.ceil(Math.sqrt(n));
+        if(k < 1) k = 1;
+
+        let p = getPrecision(veri);
+        let step = Math.pow(10, -p);
+
+        let h_raw = R / k;
+        let h = Math.ceil(h_raw / step) * step;
+        if(h < step) h = step;
+
+        while (S + (k * h) - step < L - 1e-9) {
+            h += step;
+        }
+        h = Number(h.toFixed(p));
+
+        let siniflar = [];
+        let altLimit = S;
+        let eklenikFrekans = 0;
+
+        for(let i=0; i<k; i++){
+            let ustLimit = altLimit + h - step;
+
+            altLimit = Number(altLimit.toFixed(p));
+            ustLimit = Number(ustLimit.toFixed(p));
+
+            let altSinir = altLimit - (step / 2);
+            let ustSinir = ustLimit + (step / 2);
+            let y_k = (altLimit + ustLimit) / 2;
+
+            let f = 0;
+            veri.forEach(v => {
+                if(v >= altLimit - 1e-9 && v <= ustLimit + 1e-9) f++;
+            });
+
+            eklenikFrekans += f;
+            siniflar.push({
+                altLimit, ustLimit, altSinir, ustSinir, y_k,
+                frekans: f, eklenikFrekans, oransal: (f / n) * 100
+            });
+
+            altLimit = altLimit + h;
+        }
+
+        return { n, k, h, p, siniflar };
+    }
+
+    function grupluFrekansTablosu(veriBilgi){
+        if(!veriBilgi) return "";
+        let p = veriBilgi.p;
+        let b = p + 1;
+
+        let tablo = "<table><tr><th>Sınıf Limitleri</th><th>Sınıf Sınırları</th><th>Sınıf Ortası (y<sub>k</sub>)</th><th>Frekans (f)</th><th>Eklenik Frekans</th><th>Oransal Frek.</th><th>Ekl. Oransal Frek.</th></tr>";
+        let toplamFrekans = 0;
+        let eklenikOransal = 0;
+
+        veriBilgi.siniflar.forEach((sinif, i) => {
+            let limitMetin = `${sinif.altLimit.toFixed(p)} - ${sinif.ustLimit.toFixed(p)}`;
+            let sinirMetin = `${sinif.altSinir.toFixed(b)} - ${sinif.ustSinir.toFixed(b)}`;
+
+            toplamFrekans += sinif.frekans;
+            eklenikOransal += sinif.oransal;
+            if(i === veriBilgi.k - 1) eklenikOransal = 100.00;
+
+            tablo += `<tr>
+                <td>${limitMetin}</td>
+                <td>${sinirMetin}</td>
+                <td>${sinif.y_k.toFixed(b)}</td>
+                <td>${sinif.frekans}</td>
+                <td>${sinif.eklenikFrekans}</td>
+                <td>%${sinif.oransal.toFixed(2)}</td>
+                <td>%${eklenikOransal.toFixed(2)}</td>
+            </tr>`;
+        });
+
+        tablo += `<tr style="font-weight:bold; background:#eef2f7;">
+            <td colspan="3">TOPLAM (n = ${veriBilgi.n})</td>
+            <td>${toplamFrekans}</td>
+            <td>-</td>
+            <td>%100.00</td>
+            <td>-</td>
+        </tr></table>`;
+        return tablo;
+    }
+
+    function grupluCeyrek(veriBilgi){
+        if(!veriBilgi) return "-";
+
+        let n = veriBilgi.n;
+        let h = veriBilgi.h;
+        let siniflar = veriBilgi.siniflar;
+
+        let q1Sira = n / 4;
+        let q1Sinif = siniflar.find(s => s.eklenikFrekans >= q1Sira);
+        if(!q1Sinif) return "-";
+        let q1SinifIndex = siniflar.indexOf(q1Sinif);
+        let L1 = q1Sinif.altSinir;
+        let n1 = q1SinifIndex > 0 ? siniflar[q1SinifIndex - 1].eklenikFrekans : 0;
+        let J1 = q1Sira - n1;
+        let Q1 = L1 + ((J1 * h) / q1Sinif.frekans);
+
+        let q3Sira = (3 * n) / 4;
+        let q3Sinif = siniflar.find(s => s.eklenikFrekans >= q3Sira);
+        let q3SinifIndex = siniflar.indexOf(q3Sinif);
+        let L3 = q3Sinif.altSinir;
+        let n3 = q3SinifIndex > 0 ? siniflar[q3SinifIndex - 1].eklenikFrekans : 0;
+        let J3 = q3Sira - n3;
+        let Q3 = L3 + ((J3 * h) / q3Sinif.frekans);
+
+        return `Q1: ${Q1.toFixed(4)} | Q3: ${Q3.toFixed(4)}`;
+    }
+
+    function ortalama(veri){
+        if(veri.length === 0) return 0;
+        return veri.reduce((a,b)=>a+b,0) / veri.length;
+    }
+
+    function medyan(veri){
+        if(veri.length === 0) return 0;
+        veri=[...veri].sort((a,b)=>a-b);
+        let n=veri.length;
+        return (n%2==0) ? (veri[n/2-1]+veri[n/2])/2 : veri[Math.floor(n/2)];
+    }
+
+    function mod(veri){
+        let freq={}, max=0, modlar = [];
+        veri.forEach(x=>{ freq[x]=(freq[x]||0)+1; if(freq[x]>max) max=freq[x]; });
+        for(let key in freq) if(freq[key] === max) modlar.push(Number(key));
+        if(modlar.length === Object.keys(freq).length && max === 1) return "Mod Yok";
+        return modlar.join(", ");
+    }
+
+    function geometrik(veri){
+        let carpim=veri.reduce((a,b)=>a*b,1);
+        return Math.pow(carpim,1/veri.length);
+    }
+
+    function harmonik(veri){
+        return veri.length / veri.reduce((a,b)=>a+1/b,0);
+    }
+
+    function varyans(veri){
+        if(veri.length <= 1) return 0;
+        let ort=ortalama(veri);
+        return veri.reduce((a,b)=>a+Math.pow(b-ort,2),0) / (veri.length-1);
+    }
+
+    function std(veri){ return Math.sqrt(varyans(veri)); }
+
+    function ortMutlakSapma(veri){
+        let ort=ortalama(veri);
+        return veri.reduce((a,b)=>a+Math.abs(b-ort),0) / veri.length;
+    }
+
+    function carpiklik(veri){
+        if(veri.length <= 1) return 0;
+        let ort = ortalama(veri), s = std(veri);
+        if(s === 0) return 0;
+        let m3 = veri.reduce((a,b)=>a+Math.pow(b-ort,3),0) / (veri.length - 1);
+        return m3 / Math.pow(s, 3);
+    }
+
+    function basiklik(veri){
+        if(veri.length <= 1) return 0;
+        let ort = ortalama(veri), s = std(veri);
+        if(s === 0) return 0;
+        let m4 = veri.reduce((a,b)=>a+Math.pow(b-ort,4),0) / (veri.length - 1);
+        return (m4 / Math.pow(s, 4)) - 3;
+    }
+
+    function hesapla(){
+        let veri=parseData("dataStats");
+        if(veri.length === 0){
+            document.getElementById("statsResult").innerHTML = "<p style='color:red'>Lütfen geçerli veri giriniz.</p>";
+            return;
+        }
+
+        let veriBilgi = siniflariHesapla(veri);
+        let ort=ortalama(veri);
+        let s=std(veri);
+
+        let sonuc=`
+        <h3 style="margin-top:30px;">Basit Seri</h3>
+        ${basitSeriGrid(veri, 10)}
+
+        <h3 style="margin-top:25px;">Frekans Serisi</h3>
+        ${frekansSerisiYatay(veri)}
+
+        <h3 style="margin-top:30px;">Frekans Tablosu</h3>
+        ${grupluFrekansTablosu(veriBilgi)}
+
+        <h3 style="margin-top:30px;">Merkezi Eğilim ve Dağılım Ölçüleri</h3>
+        <table style="width:100%; text-align:left;">
+            <tr>
+                <td><b>Aritmetik Ortalama:</b> ${ort.toFixed(4)}</td>
+                <td><b>Standart Sapma (S):</b> ${s.toFixed(4)}</td>
+            </tr>
+            <tr>
+                <td><b>Medyan:</b> ${medyan(veri)}</td>
+                <td><b>Varyans (S²):</b> ${varyans(veri).toFixed(4)}</td>
+            </tr>
+            <tr>
+                <td><b>Mod:</b> ${mod(veri)}</td>
+                <td><b>Ortalama Mutlak Sapma:</b> ${ortMutlakSapma(veri).toFixed(4)}</td>
+            </tr>
+            <tr>
+                <td><b>Geometrik Ortalama:</b> ${geometrik(veri).toFixed(4)}</td>
+                <td><b>Varyasyon Katsayısı:</b> ${(s/ort).toFixed(4)}</td>
+            </tr>
+            <tr>
+                <td><b>Harmonik Ortalama:</b> ${harmonik(veri).toFixed(4)}</td>
+                <td><b>Çeyrekler (Q1 ve Q3):</b> ${grupluCeyrek(veriBilgi)}</td>
+            </tr>
+            <tr>
+                <td><b>Çarpıklık Ölçütü:</b> ${carpiklik(veri).toFixed(4)}</td>
+                <td><b>Basıklık Ölçütü:</b> ${basiklik(veri).toFixed(4)}</td>
+            </tr>
+        </table>
+        `
+        document.getElementById("statsResult").innerHTML=sonuc;
+    }
+
+    function shuffle(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function getEvrenVerisi(tekrarli = false) {
+        let min = parseInt(document.getElementById("rangeMin").value);
+        let max = parseInt(document.getElementById("rangeMax").value);
+        let n = parseInt(document.getElementById("sampleSize").value);
+
+        if (isNaN(min) || isNaN(max) || min > max) {
+            document.getElementById("sampleResult").innerHTML = "<p style='color:red'>Lütfen geçerli değer girin!</p>";
+            return null;
+        }
+
+        let evrenBuyuklugu = max - min + 1;
+
+        if (isNaN(n) || n <= 0 || (!tekrarli && n > evrenBuyuklugu)) {
+            document.getElementById("sampleResult").innerHTML = "<p style='color:red'>Geçersiz örnek sayısı!</p>";
+            return null;
+        }
+
+        if (evrenBuyuklugu > 500000) return null;
+        let evren = []; for(let i = min; i <= max; i++) evren.push(i);
+        return { veri: evren, n: n };
+    }
+
+    function ornekTablo(veri){
+        let tablo="<table><tr><th>Örnek Değer</th></tr>";
+        veri.forEach(x=>{ tablo+=`<tr><td>${x}</td></tr>` });
+        return tablo+"</table>";
+    }
+
+    function toggleTabakali() {
+        let area = document.getElementById("stratumInputArea");
+        if (area.style.display === "none" || area.style.display === "") {
+            area.style.display = "block";
+        } else {
+            area.style.display = "none";
+        }
+    }
+
+    function basitRastgele(){
+        document.getElementById("stratumInputArea").style.display = "none";
+        let i = getEvrenVerisi(true);
+        if(!i) return;
+
+        let sonuc = [];
+        let evren = i.veri;
+        if(i.n <= evren.length) {
+            sonuc = shuffle([...evren]).slice(0, i.n);
+        } else {
+            for(let j=0; j < i.n; j++){
+                let rastgeleIndex = Math.floor(Math.random() * evren.length);
+                sonuc.push(evren[rastgeleIndex]);
+            }
+        }
+
+        document.getElementById("sampleResult").innerHTML=ornekTablo(sonuc);
+    }
+
+    function sistematik(){
+        document.getElementById("stratumInputArea").style.display = "none";
+        let i = getEvrenVerisi(); if(!i) return;
+        let N = i.veri.length, k = Math.floor(N/i.n), bas = Math.floor(Math.random() * k), s = [];
+        for(let j=0; j<i.n; j++) if(bas + j*k < N) s.push(i.veri[bas + j*k]);
+        document.getElementById("sampleResult").innerHTML=ornekTablo(s);
+    }
+
+    function tabakali(){
+        let i = getEvrenVerisi(); if(!i) return;
+
+        let percentStr = document.getElementById("stratumPercents").value.trim();
+        if(!percentStr) {
+            document.getElementById("sampleResult").innerHTML = "<p style='color:red'>Lütfen tabaka yüzdelerini girin!</p>";
+            return;
+        }
+
+        let percents = percentStr.split(",").map(x => parseFloat(x.trim()));
+        if(percents.some(isNaN)) {
+            document.getElementById("sampleResult").innerHTML = "<p style='color:red'>Lütfen yüzdeleri sayı olarak ve virgülle ayırarak girin!</p>";
+            return;
+        }
+
+        let sum = percents.reduce((a,b) => a+b, 0);
+        if(Math.abs(sum - 100) > 0.01) {
+            document.getElementById("sampleResult").innerHTML = `<p style='color:red'>Tabaka yüzdelerinin toplamı 100 olmalıdır! (Şu anki toplam: ${sum})</p>`;
+            return;
+        }
+
+        let k = percents.length;
+        let N = i.veri.length;
+
+        if(k > N) {
+            document.getElementById("sampleResult").innerHTML = "<p style='color:red'>Tabaka sayısı evren büyüklüğünden fazla olamaz!</p>";
+            return;
+        }
+
+        let tabakalar = [];
+        let startIndex = 0;
+        for(let j=0; j<k; j++) {
+            let currentSize = (j === k-1) ? (N - startIndex) : Math.round(N * (percents[j] / 100));
+            tabakalar.push(i.veri.slice(startIndex, startIndex + currentSize));
+            startIndex += currentSize;
+        }
+
+        let n_array = [];
+        let n_total_assigned = 0;
+        for (let j = 0; j < k - 1; j++) {
+            let n_j = Math.round(i.n * (percents[j] / 100));
+            n_array.push(n_j);
+            n_total_assigned += n_j;
+        }
+        let n_last = i.n - n_total_assigned;
+        if (n_last < 0) n_last = 0;
+        n_array.push(n_last);
+
+        let tablo = `<div class="table-responsive"><table><tr>`;
+        for (let j = 0; j < k; j++) {
+            tablo += `<th>${j+1}. Tabaka (%${percents[j]}) <br> <small>${n_array[j]} Örnek</small></th>`;
+        }
+        tablo += `</tr>`;
+
+        let samples = [];
+        let maxLen = 0;
+        for (let j = 0; j < k; j++) {
+            let s_j = shuffle([...tabakalar[j]]).slice(0, n_array[j]);
+            samples.push(s_j);
+            if (s_j.length > maxLen) maxLen = s_j.length;
+        }
+
+        for (let row = 0; row < maxLen; row++) {
+            tablo += `<tr>`;
+            for (let col = 0; col < k; col++) {
+                let val = row < samples[col].length ? samples[col][row] : "";
+                tablo += `<td>${val}</td>`;
+            }
+            tablo += `</tr>`;
+        }
+        tablo += `</table></div>`;
+
+        document.getElementById("sampleResult").innerHTML = tablo;
+    }
+</script>
+
+</body>
+</html>
