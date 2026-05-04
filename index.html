@@ -375,6 +375,18 @@
         return veri.reduce((a,b)=>a+Math.abs(b-ort),0) / veri.length;
     }
 
+    function hamCarpiklik(veri){
+        if(veri.length <= 1) return 0;
+        let ort = ortalama(veri);
+        return veri.reduce((a,b)=>a+Math.pow(b-ort,3),0) / (veri.length - 1);
+    }
+
+    function hamBasiklik(veri){
+        if(veri.length <= 1) return 0;
+        let ort = ortalama(veri);
+        return veri.reduce((a,b)=>a+Math.pow(b-ort,4),0) / (veri.length - 1);
+    }
+
     function carpiklik(veri){
         if(veri.length <= 1) return 0;
         let ort = ortalama(veri), s = std(veri);
@@ -435,8 +447,12 @@
                 <td><b>Çeyrekler (Q1 ve Q3):</b> ${grupluCeyrek(veriBilgi)}</td>
             </tr>
             <tr>
-                <td><b>Çarpıklık Ölçütü:</b> ${carpiklik(veri).toFixed(4)}</td>
-                <td><b>Basıklık Ölçütü:</b> ${basiklik(veri).toFixed(4)}</td>
+                <td><b>Çarpıklık (m₃):</b> ${hamCarpiklik(veri).toFixed(4)}</td>
+                <td><b>Basıklık (m₄):</b> ${hamBasiklik(veri).toFixed(4)}</td>
+            </tr>
+            <tr>
+                <td><b>Std. Çarpıklık (m₃'):</b> ${carpiklik(veri).toFixed(4)}</td>
+                <td><b>Std. Basıklık (K):</b> ${basiklik(veri).toFixed(4)}</td>
             </tr>
         </table>
         `
